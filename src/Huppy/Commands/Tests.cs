@@ -3,13 +3,9 @@ using Discord.Commands;
 
 namespace Huppy.Commands
 {
-    public class Base : ModuleBase<SocketCommandContext>
+    public class Tests : ModuleBase<SocketCommandContext>
     {
-        private readonly CommandService _commandService;
-        public Base(CommandService commands)
-        {
-            _commandService = commands;
-        }
+        public Tests() { }
 
         [Command("Ping")]
         [RequireOwner]

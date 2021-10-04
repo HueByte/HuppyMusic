@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using System.Security;
 using System.Threading.Tasks;
 using Discord;
@@ -7,23 +8,29 @@ using Discord.WebSocket;
 
 namespace Huppy.Services
 {
-    public class CommandHandlerService
+    public class CommandHandlerService : IInjectableSingleton
     {
         private readonly CommandService _commandService;
         private readonly DiscordShardedClient _client;
         private readonly IServiceProvider _serviceProvider;
         public CommandHandlerService(DiscordShardedClient client, CommandService commands, IServiceProvider serviceProvider)
         {
+            // DI
             _client = client;
             _commandService = commands;
             _serviceProvider = serviceProvider;
 
+            // events
             _client.MessageReceived += HandleCommandAsync;
+        }
+
+        public async Task InitializeAsync()
+        {
+            await _commandService.AddModulesAsync(Assembly.GetEntryAssembly(), _serviceProvider);
         }
 
         public async Task HandleCommandAsync(SocketMessage paramMessage)
         {
-            Console.WriteLine("It worked somehow");
             // Don't process the command if it was a system message
             if (paramMessage is not SocketUserMessage message) return;
 
