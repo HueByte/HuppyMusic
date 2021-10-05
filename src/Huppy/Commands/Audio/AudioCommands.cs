@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
+using Discord.WebSocket;
 using Huppy.Services;
 using Victoria;
 using Victoria.Enums;
@@ -15,10 +16,12 @@ namespace Huppy.Commands.Audio
     {
         private readonly LavaNode _lavaNode;
         private readonly AudioService _audioService;
-        public AudioCommands(LavaNode lavaNode, AudioService audioService)
+        private readonly DiscordShardedClient _shardedClient;
+        public AudioCommands(LavaNode lavaNode, AudioService audioService, DiscordShardedClient shardedClient)
         {
             _lavaNode = lavaNode;
             _audioService = audioService;
+            _shardedClient = shardedClient;
         }
 
         [Command("Join")]
@@ -82,6 +85,9 @@ namespace Huppy.Commands.Audio
         [Command("ForceLeave")]
         public async Task ForceLeaveAsync()
         {
+            var player = _lavaNode.GetPlayer(_shardedClient.GetGuild(Context.Guild.Id));
+            var voiceChannel = player.VoiceChannel;
+            await voiceChannel.DisconnectAsync();
         }
 
         [Command("Play")]
@@ -158,6 +164,27 @@ namespace Huppy.Commands.Audio
             }
         }
 
+        [Command("queue")]
+        public async Task QueueAsync()
+        {
+            if (!_lavaNode.TryGetPlayer(Context.Guild, out var player))
+            {
+                await ReplyAsync("I'm not connected to a voice channel.");
+                return;
+            }
+
+            var queue = player.Queue.ToList();
+
+            var stringBuilder = new StringBuilder();
+            foreach (var item in queue.Take(10))
+            {
+                stringBuilder.Append(item.Title + " ");
+            }
+
+
+            await ReplyAsync(stringBuilder.ToString());
+        }
+
         [Command("Resume")]
         [Summary("Resumes the track")]
         public async Task ResumeAsync()
@@ -184,9 +211,9 @@ namespace Huppy.Commands.Audio
             try
             {
                 await player.ResumeAsync();
-                await ReplyAsync($"Resumed: {player.Track.Title}");
+                // await ReplyAsync($"Resumed: {player.Track.Title}");
             }
-            catch
+            catch (Exception e)
             {
                 await ReplyAsync("Something went wrong");
             }

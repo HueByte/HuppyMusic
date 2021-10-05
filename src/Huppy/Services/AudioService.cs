@@ -20,8 +20,12 @@ namespace Huppy.Services
             _lavaNode = lavaNode;
             _disconnectTokens = new ConcurrentDictionary<ulong, CancellationTokenSource>();
 
+            // Events
             _lavaNode.OnTrackStarted += OnTrackStarted;
             _lavaNode.OnTrackEnded += OnTrackEnded;
+            _lavaNode.OnTrackException += OnTrackException;
+            _lavaNode.OnTrackStuck += OnTrackStuck;
+            _lavaNode.OnWebSocketClosed += OnWebSocketClosed;
         }
 
         public async Task OnTrackStarted(TrackStartEventArgs args)
@@ -42,9 +46,8 @@ namespace Huppy.Services
 
         private async Task OnTrackEnded(TrackEndedEventArgs args)
         {
-            if (args.Reason is not TrackEndReason.Finished)
+            if (args.Reason is TrackEndReason.Replaced)
                 return;
-
 
             var player = args.Player;
             if (!player.Queue.TryDequeue(out var queueable))
@@ -63,6 +66,27 @@ namespace Huppy.Services
             await args.Player.PlayAsync(track);
             await args.Player.TextChannel.SendMessageAsync(
                 $"{args.Reason}: {args.Track.Title}\nNow playing: {track.Title}");
+        }
+
+        private async Task OnTrackException(TrackExceptionEventArgs args)
+        {
+            args.Player.Queue.Enqueue(args.Track);
+            await args.Player.TextChannel?.SendMessageAsync(
+                $"{args.Track.Title} has been re-added to queue after throwing an exception.");
+        }
+
+        private async Task OnTrackStuck(TrackStuckEventArgs args)
+        {
+            args.Player.Queue.Enqueue(args.Track);
+            await args.Player.TextChannel?.SendMessageAsync(
+                $"{args.Track.Title} has been re-added to queue after getting stuck.");
+        }
+
+        private async Task OnWebSocketClosed(WebSocketClosedEventArgs arg)
+        {
+            var player = _lavaNode.GetPlayer(_shardedClient.GetGuild(arg.GuildId));
+            var voiceChannel = player.VoiceChannel;
+            await voiceChannel.DisconnectAsync();
         }
 
         private async Task InitiateDisconnectAsync(LavaPlayer player, TimeSpan timeSpan)
