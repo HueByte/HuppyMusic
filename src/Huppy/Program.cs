@@ -1,14 +1,6 @@
 ﻿using System;
-using System.Net.Http;
-using System.Reflection;
 using System.Threading.Tasks;
-using Discord;
-using Discord.Commands;
-using Discord.WebSocket;
 using Huppy.Configuration;
-using Huppy.Services;
-using Microsoft.Extensions.DependencyInjection;
-using Victoria;
 
 namespace Huppy
 {
@@ -20,8 +12,9 @@ namespace Huppy
                 .AddDiscord()
                 .AddDiscord()
                 .AddAudio()
-                .AddServices()
+                .AddServices()  // services that inherit from IInjectableSingleton get injected via reflection
                 .BuildServiceProvider();
+
         private static async Task Main() => await new Program().StartAsync();
 
         private async Task StartAsync()
@@ -29,6 +22,8 @@ namespace Huppy
             var discordConfigurator = new DiscordConfigurator(_serviceProvider);
 
             await discordConfigurator.ConfigureCommandsAsync();
+
+            await discordConfigurator.ConfigureClientEventsAsync();
 
             await discordConfigurator.InitializeBot();
 
