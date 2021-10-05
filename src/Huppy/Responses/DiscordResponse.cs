@@ -15,12 +15,12 @@ namespace Huppy.Responses
                                      .WithCurrentTimestamp();
         }
 
-        public static EmbedBuilder CreateSuccess(IUser user, string errorMessage)
+        public static EmbedBuilder CreateSuccess(IUser user, string successMessage)
         {
             return new EmbedBuilder().WithAuthor(user.Username, user.GetAvatarUrl())
                                      .WithColor(Color.Red)
                                      .WithTitle("Error")
-                                     .WithDescription($"```diff\n- {errorMessage}\n```")
+                                     .WithDescription($"```diff\n- {successMessage}\n```")
                                      .WithThumbnailUrl(DiscordEmbedThumbnails.Success)
                                      .WithFooter("Post made at ")
                                      .WithCurrentTimestamp();
