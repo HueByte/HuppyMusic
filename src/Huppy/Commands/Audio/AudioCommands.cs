@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using Huppy.Responses;
 using Huppy.Services;
 using Victoria;
 using Victoria.Enums;
@@ -27,23 +28,25 @@ namespace Huppy.Commands.Audio
         [Command("Join")]
         public async Task JoinAsync(bool skipConnectedCheck = false)
         {
+            EmbedBuilder embed;
             if (!skipConnectedCheck && _lavaNode.HasPlayer(Context.Guild))
             {
-                await ReplyAsync("I'm already connected to a voice channel!");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "I'm already connected to a voice channel!");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
             var voiceState = Context.User as IVoiceState;
             if (voiceState?.VoiceChannel == null)
             {
-                await ReplyAsync("You must be connected to a voice channel!");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "You must be connected to a voice channel!");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
             try
             {
                 await _lavaNode.JoinAsync(voiceState.VoiceChannel, Context.Channel as ITextChannel);
-                await ReplyAsync($"Joined {voiceState.VoiceChannel.Name}!");
             }
             catch (Exception exception)
             {
@@ -55,10 +58,13 @@ namespace Huppy.Commands.Audio
         [Summary("Makes the bot Leave the voice chat")]
         public async Task LeaveAsync()
         {
+            EmbedBuilder embed;
+
             //Check if bot is connected to voice chat
             if (!_lavaNode.TryGetPlayer(Context.Guild, out var player))
             {
-                await ReplyAsync("I'm not connected to any voice channels!");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "I'm not connected to any voice channels");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
@@ -66,7 +72,8 @@ namespace Huppy.Commands.Audio
             var voiceChannel = (Context.User as IVoiceState).VoiceChannel ?? player.VoiceChannel;
             if (voiceChannel == null)
             {
-                await ReplyAsync("Something went wrong with disconnecting");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "Something went wrong with disconnecting");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
@@ -93,10 +100,12 @@ namespace Huppy.Commands.Audio
         [Command("Play")]
         public async Task PlayAsync([Remainder] string searchQuery)
         {
+            EmbedBuilder embed;
 
             if (string.IsNullOrWhiteSpace(searchQuery))
             {
-                await ReplyAsync("Please provide search terms.");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "Please provide search terms");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
@@ -109,11 +118,13 @@ namespace Huppy.Commands.Audio
             if (searchResponse.Status == SearchStatus.LoadFailed ||
                 searchResponse.Status == SearchStatus.NoMatches)
             {
-                await ReplyAsync($"I wasn't able to find anything for `{searchQuery}`.");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, $"I wasn't able to find anything for `{searchQuery}`.");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
             var player = _lavaNode.GetPlayer(Context.Guild);
+            embed = DiscordResponse.Create(Context.Client.CurrentUser);
 
             if (player.PlayerState == PlayerState.Playing || player.PlayerState == PlayerState.Paused)
             {
@@ -124,13 +135,24 @@ namespace Huppy.Commands.Audio
                         player.Queue.Enqueue(track);
                     }
 
-                    await ReplyAsync($"Enqueued {searchResponse.Tracks.Count} tracks.");
+                    embed.WithTitle("Success")
+                         .WithDescription($"🎵 Enqueued {searchResponse.Tracks.Count} tracks. 🎵")
+                         .WithThumbnailUrl(DiscordEmbedThumbnails.Success);
+
+                    await ReplyAsync("", false, embed.Build());
+
+
                 }
                 else
                 {
                     var track = searchResponse.Tracks.ToArray()[0];
                     player.Queue.Enqueue(track);
-                    await ReplyAsync($"Enqueued: {track.Title}");
+
+                    embed.WithTitle("Success")
+                         .WithDescription($"🎵 Enqueued: {track.Title} 🎵")
+                         .WithThumbnailUrl(DiscordEmbedThumbnails.Success);
+
+                    await ReplyAsync("", false, embed.Build());
                 }
             }
             else
@@ -145,8 +167,13 @@ namespace Huppy.Commands.Audio
                     {
                         if (i == 0)
                         {
+                            embed.WithTitle("Success")
+                                 .WithDescription($"🎵 Now Playing: {track.Title} 🎵")
+                                 .WithThumbnailUrl(await track.FetchArtworkAsync());
+
                             await player.PlayAsync(track);
-                            await ReplyAsync($"Now Playing: {track.Title}");
+                            await ReplyAsync(embed: embed.Build());
+
                         }
                         else
                         {
@@ -154,12 +181,21 @@ namespace Huppy.Commands.Audio
                         }
                     }
 
-                    await ReplyAsync($"Enqueued {searchResponse.Tracks.Count} tracks.");
+                    embed.WithTitle("Success")
+                         .WithDescription($"🎵 Enqueued {searchResponse.Tracks.Count} tracks. 🎵")
+                         .WithThumbnailUrl(await track.FetchArtworkAsync());
+
+                    await ReplyAsync(embed: embed.Build());
                 }
                 else
                 {
+                    embed.WithTitle("Success")
+                         .WithDescription($"🎵 Now Playing: {track.Title} 🎵")
+                         .WithThumbnailUrl(await track.FetchArtworkAsync());
+
                     await player.PlayAsync(track);
-                    await ReplyAsync($"Now Playing: {track.Title}");
+                    await ReplyAsync(embed: embed.Build());
+
                 }
             }
         }
@@ -167,39 +203,52 @@ namespace Huppy.Commands.Audio
         [Command("queue")]
         public async Task QueueAsync()
         {
+            EmbedBuilder embed;
+
             if (!_lavaNode.TryGetPlayer(Context.Guild, out var player))
             {
-                await ReplyAsync("I'm not connected to a voice channel.");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "I'm not connected to a voice channel.");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
-            var queue = player.Queue.ToList();
+            var queue = player.Queue.ToArray();
 
-            var stringBuilder = new StringBuilder();
-            foreach (var item in queue.Take(10))
+            embed = DiscordResponse.Create(Context.Client.CurrentUser);
+            embed.WithTitle("Your queue");
+            embed.WithDescription("Your next 10 songs in queue");
+
+            int takeTenOrLess = player.Queue.Count > 10 ? 10 : player.Queue.Count;
+            int current = 1;
+            while (current <= takeTenOrLess)
             {
-                stringBuilder.Append(item.Title + " ");
+                embed.AddField($"🎵 **{current}** ", $"```{queue[current - 1].Title}```", true);
+                current++;
             }
 
+            await ReplyAsync(embed: embed.Build());
 
-            await ReplyAsync(stringBuilder.ToString());
         }
 
         [Command("Resume")]
         [Summary("Resumes the track")]
         public async Task ResumeAsync()
         {
+            EmbedBuilder embed;
+
             //Check if bot is connected to voice chat
             if (!_lavaNode.TryGetPlayer(Context.Guild, out var player))
             {
-                await ReplyAsync("I'm not connected to a voice channel.");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "I'm not connected to a voice channel.");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
             //Check if the user's room is the same as bot's
             if ((Context.User as IVoiceState).VoiceChannel != player.VoiceChannel)
             {
-                await ReplyAsync("You have to be in the same room as bot to resume the music");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "You have to be in the same room as bot to resume the music");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
@@ -215,7 +264,9 @@ namespace Huppy.Commands.Audio
             }
             catch (Exception e)
             {
-                await ReplyAsync("Something went wrong");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "Something went wrong");
+                await ReplyAsync(embed: embed.Build());
+                return;
             }
         }
 
@@ -223,29 +274,40 @@ namespace Huppy.Commands.Audio
         [Summary("Pauses the track")]
         public async Task PauseAsync()
         {
+            EmbedBuilder embed;
+
             //Check if the bot is connected to voice chat
             if (!_lavaNode.TryGetPlayer(Context.Guild, out var player))
             {
-                await ReplyAsync("I'm not connected to a voice channel.");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "I'm not connected to a voice channel.");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
             //Check if the user's room is the same as bot's
             if ((Context.User as IVoiceState).VoiceChannel != player.VoiceChannel)
             {
-                await ReplyAsync("You have to be in the same room as bot to pause the music");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "You have to be in the same room as bot to pause the music");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
             if (player.PlayerState == PlayerState.Paused)
             {
-                await ReplyAsync("I cannot pause when I'm not playing anything!");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "I cannot pause when I'm not playing anything!");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
             try
             {
                 await player.PauseAsync();
+
+                embed = DiscordResponse.Create(Context.Client.CurrentUser);
+                embed.WithColor(Color.Gold);
+                embed.WithDescription($"Paused: {player.Track.Title}");
+                embed.WithThumbnailUrl(await player.Track.FetchArtworkAsync());
+
                 await ReplyAsync($"Paused: {player.Track.Title}");
             }
             catch (Exception exception)
@@ -258,23 +320,27 @@ namespace Huppy.Commands.Audio
         [Summary("Stops the music")]
         public async Task StopAsync()
         {
+            EmbedBuilder embed;
+
             //Check if the bot is connected to voice room
             if (!_lavaNode.TryGetPlayer(Context.Guild, out var player))
             {
-                await ReplyAsync("I'm not connected to a voice channel.");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "I'm not connected to a voice channel.");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
             //Check if the user's room is the same as bot's
             if ((Context.User as IVoiceState).VoiceChannel != player.VoiceChannel)
             {
-                await ReplyAsync("You have to be in the same room as bot to stop the music");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "You have to be in the same room as bot to stop the music");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
             if (player.PlayerState == PlayerState.Stopped)
             {
-                await ReplyAsync("Woaaah there, I can't stop the stopped.");
+                await ReplyAsync("Woaaah there, I can't stop the what's already stopped.");
                 return;
             }
 
@@ -295,17 +361,21 @@ namespace Huppy.Commands.Audio
         [Summary("Skips the track or entered amount of tracks\nUsage: $Skip 10")]
         public async Task SkipAsync(int amount = 0)
         {
+            EmbedBuilder embed;
+
             //Check if the user is connected to voice room
             if (!_lavaNode.TryGetPlayer(Context.Guild, out var player))
             {
-                await ReplyAsync("I'm not connected to a voice channel.");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "I'm not connected to a voice channel.");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
             //Check if the user's room is the same as bot's
             if ((Context.User as IVoiceState).VoiceChannel != player.VoiceChannel)
             {
-                await ReplyAsync("You have to be in the same room as bot to skip the music");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "You have to be in the same room as bot to skip the music");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
@@ -317,24 +387,10 @@ namespace Huppy.Commands.Audio
 
             if (player.Queue.Count < amount)
             {
-                await ReplyAsync("Provide value which is lower than overall count of tracks");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "Provide value which is lower than overall count of tracks");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
-
-            /*var voiceChannelUsers = (player.VoiceChannel as SocketVoiceChannel).Users.Where(x => !x.IsBot).ToArray();
-            if (MusicService.VoteQueue.Contains(Context.User.Id))
-            {
-                await ReplyAsync("You can't vote again.");
-                return;
-            }
-            MusicService.VoteQueue.Add(Context.User.Id);
-            var percentage = MusicService.VoteQueue.Count / voiceChannelUsers.Length * 100;
-            if (percentage < 30)
-            {
-                await ReplyAsync("You need more than 30% votes to skip this song.");
-                return;
-            }
-            */
 
             try
             {
@@ -345,15 +401,14 @@ namespace Huppy.Commands.Audio
 
                 var currenTrack = await player.SkipAsync();
 
-                // var emb = new EmbedBuilder();
-                // emb.WithColor(Color.DarkPurple);
-                // emb.WithTitle("Now playing");
-                // emb.WithDescription(currenTrack.Title);
-                // emb.AddField("Duration", currenTrack.Duration.ToString(@"hh\:mm\:ss"));
-                // emb.AddField("Author", currenTrack.Author);
-                // emb.WithThumbnailUrl(currenTrack.FetchArtworkAsync().GetAwaiter().GetResult());
+                embed = DiscordResponse.Create(Context.Client.CurrentUser);
+                embed.WithTitle($"{currenTrack.Current.Author} - {currenTrack.Current.Title}")
+                     .WithThumbnailUrl(await currenTrack.Current.FetchArtworkAsync())
+                     .WithUrl(currenTrack.Current.Url)
+                     .AddField("Id", $"```{currenTrack.Current.Id}```")
+                     .AddField("Duration", $"```{currenTrack.Current.Duration}```");
 
-                // await ReplyAsync($"Skipped: {oldTrack.Title}", false, emb.Build());
+                await ReplyAsync(embed: embed.Build());
             }
             catch (Exception exception)
             {
@@ -432,30 +487,31 @@ namespace Huppy.Commands.Audio
         [Summary("Get current track")]
         public async Task NowPlayingAsync()
         {
+            EmbedBuilder embed;
+
             if (!_lavaNode.TryGetPlayer(Context.Guild, out var player))
             {
-                await ReplyAsync("I'm not connected to a voice channel.");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "I'm not connected to a voice channel.");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
             if (player.PlayerState != PlayerState.Playing)
             {
-                await ReplyAsync("Woaaah there, I'm not playing any tracks.");
+                embed = DiscordResponse.CreateError(Context.Client.CurrentUser, "I'm not playing any tracks.");
+                await ReplyAsync(embed: embed.Build());
                 return;
             }
 
             var track = player.Track;
-            var artwork = await track.FetchArtworkAsync();
 
-            var embed = new EmbedBuilder
-            {
-                Title = $"{track.Author} - {track.Title}",
-                ThumbnailUrl = artwork,
-                Url = track.Url
-            }
-                .AddField("Id", track.Id)
-                .AddField("Duration", track.Duration)
-                .AddField("Position", track.Position);
+            embed = DiscordResponse.Create(Context.Client.CurrentUser);
+            embed.WithTitle($"{track.Author} - {track.Title}")
+                 .WithThumbnailUrl(await track.FetchArtworkAsync())
+                 .WithUrl(track.Url)
+                 .AddField("Id", $"```{track.Id}```")
+                 .AddField("Duration", $"```{track.Duration}```")
+                 .AddField("Position", $"```{track.Position}```");
 
             await ReplyAsync(embed: embed.Build());
         }
