@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Discord.WebSocket;
+using Huppy.Responses;
 using Victoria;
 using Victoria.Enums;
 using Victoria.EventArgs;
@@ -63,9 +64,16 @@ namespace Huppy.Services
                 return;
             }
 
+            var embed = DiscordResponse.Create(_shardedClient.CurrentUser);
+
+            embed.WithTitle("Success")
+                 .WithDescription($"🎵 {args.Reason}: {args.Track.Title}\nNow playing: {track.Title} 🎵")
+                 .WithThumbnailUrl(await track.FetchArtworkAsync())
+                 .AddField("Duration", $"```{track.Duration}```");
+
+
             await args.Player.PlayAsync(track);
-            await args.Player.TextChannel.SendMessageAsync(
-                $"{args.Reason}: {args.Track.Title}\nNow playing: {track.Title}");
+            await args.Player.TextChannel.SendMessageAsync(embed: embed.Build());
         }
 
         private async Task OnTrackException(TrackExceptionEventArgs args)

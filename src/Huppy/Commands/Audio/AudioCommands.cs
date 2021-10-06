@@ -139,9 +139,7 @@ namespace Huppy.Commands.Audio
                          .WithDescription($"🎵 Enqueued {searchResponse.Tracks.Count} tracks. 🎵")
                          .WithThumbnailUrl(DiscordEmbedThumbnails.Success);
 
-                    await ReplyAsync("", false, embed.Build());
-
-
+                    await ReplyAsync(embed: embed.Build());
                 }
                 else
                 {
@@ -152,12 +150,14 @@ namespace Huppy.Commands.Audio
                          .WithDescription($"🎵 Enqueued: {track.Title} 🎵")
                          .WithThumbnailUrl(DiscordEmbedThumbnails.Success);
 
-                    await ReplyAsync("", false, embed.Build());
+                    await ReplyAsync(embed: embed.Build());
+
                 }
             }
             else
             {
                 var track = searchResponse.Tracks.ToArray()[0];
+                string artwork = await track.FetchArtworkAsync();
 
                 if (!string.IsNullOrWhiteSpace(searchResponse.Playlist.Name))
                 {
@@ -167,9 +167,10 @@ namespace Huppy.Commands.Audio
                     {
                         if (i == 0)
                         {
+
                             embed.WithTitle("Success")
                                  .WithDescription($"🎵 Now Playing: {track.Title} 🎵")
-                                 .WithThumbnailUrl(await track.FetchArtworkAsync());
+                                 .WithThumbnailUrl(artwork);
 
                             await player.PlayAsync(track);
                             await ReplyAsync(embed: embed.Build());
@@ -183,7 +184,7 @@ namespace Huppy.Commands.Audio
 
                     embed.WithTitle("Success")
                          .WithDescription($"🎵 Enqueued {searchResponse.Tracks.Count} tracks. 🎵")
-                         .WithThumbnailUrl(await track.FetchArtworkAsync());
+                         .WithThumbnailUrl(artwork);
 
                     await ReplyAsync(embed: embed.Build());
                 }
@@ -191,7 +192,8 @@ namespace Huppy.Commands.Audio
                 {
                     embed.WithTitle("Success")
                          .WithDescription($"🎵 Now Playing: {track.Title} 🎵")
-                         .WithThumbnailUrl(await track.FetchArtworkAsync());
+                         .WithThumbnailUrl(await track.FetchArtworkAsync())
+                         .AddField("Duration", $"```{track.Duration}```");
 
                     await player.PlayAsync(track);
                     await ReplyAsync(embed: embed.Build());
