@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using Huppy.Configuration;
 
 namespace Huppy.Services
 {
@@ -13,12 +14,14 @@ namespace Huppy.Services
         private readonly CommandService _commandService;
         private readonly DiscordShardedClient _client;
         private readonly IServiceProvider _serviceProvider;
-        public CommandHandlerService(DiscordShardedClient client, CommandService commands, IServiceProvider serviceProvider)
+        private readonly AppSettings _appSettings;
+        public CommandHandlerService(DiscordShardedClient client, CommandService commands, IServiceProvider serviceProvider, AppSettings appSettings)
         {
             // DI
             _client = client;
             _commandService = commands;
             _serviceProvider = serviceProvider;
+            _appSettings = appSettings;
 
             // events
             _client.MessageReceived += HandleCommandAsync;
@@ -35,7 +38,7 @@ namespace Huppy.Services
 
             int argPos = 0;
 
-            if (!(message.HasCharPrefix(';', ref argPos) ||
+            if (!(message.HasCharPrefix(_appSettings.Prefix, ref argPos) ||
                 message.HasMentionPrefix(_client.CurrentUser, ref argPos)) ||
                 message.Author.IsBot)
                 return;

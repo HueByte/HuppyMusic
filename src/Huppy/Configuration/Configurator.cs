@@ -4,6 +4,7 @@ using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using Huppy.Services;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Victoria;
 
@@ -15,6 +16,17 @@ namespace Huppy.Configuration
         public Configurator(IServiceCollection services = null)
         {
             _services = services ?? new ServiceCollection();
+        }
+
+        public Configurator AddAppSettings()
+        {
+            var appSettings = AppSettings.IsCreated
+                ? AppSettings.Load()
+                : AppSettings.Create();
+
+            _services.AddSingleton(appSettings);
+
+            return this;
         }
 
         public Configurator AddDiscord()

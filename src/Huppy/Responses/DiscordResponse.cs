@@ -20,7 +20,7 @@ namespace Huppy.Responses
             return new EmbedBuilder().WithAuthor(user.Username, user.GetAvatarUrl())
                                      .WithColor(Color.Red)
                                      .WithTitle("Error")
-                                     .WithDescription($"```diff\n- {successMessage}\n```")
+                                     .WithDescription($"```diff\n+ {successMessage}\n```")
                                      .WithThumbnailUrl(DiscordEmbedThumbnails.Success)
                                      .WithFooter("Post made at ")
                                      .WithCurrentTimestamp();
@@ -40,11 +40,8 @@ namespace Huppy.Responses
 
         public static EmbedBuilder CreateMessage(IUser user, string message)
         {
-            return new EmbedBuilder().WithAuthor(user.Username, user.GetAvatarUrl())
-                                     .WithTitle(message)
-                                     .WithFooter("Post made at ")
-                                     .WithColor(Color.Teal)
-                                     .WithCurrentTimestamp();
+            return new EmbedBuilder().WithDescription(message)
+                                     .WithColor(Color.Teal);
         }
     }
 }

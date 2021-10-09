@@ -9,7 +9,7 @@ namespace Huppy
         private readonly IServiceProvider _serviceProvider;
         public Program() =>
             _serviceProvider = new Configurator()
-                .AddDiscord()
+                .AddAppSettings()   // need to be called first to fetch variables to other services
                 .AddDiscord()
                 .AddAudio()
                 .AddServices()  // services that inherit from IInjectableSingleton get injected via reflection

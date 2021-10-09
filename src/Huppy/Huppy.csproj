@@ -3,9 +3,21 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net5.0</TargetFramework>
   </PropertyGroup>
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+    <GenerateRuntimeConfigurationFiles>True</GenerateRuntimeConfigurationFiles>
+  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Discord.Net" Version="2.4.0"/>
     <PackageReference Include="Victoria" Version="5.2.3"/>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="5.0.2"/>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="5.0.0"/>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="5.0.0"/>
+  </ItemGroup>
+  <ItemGroup>
+    <ContentWithTargetPath Include="appsettings.json" Condition="Exists('appsettings.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>appsettings.json</TargetPath>
+    </ContentWithTargetPath >
   </ItemGroup>
 </Project>

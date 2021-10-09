@@ -1,7 +1,7 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Discord;
-using Discord.Commands;
 using Discord.WebSocket;
 using Huppy.EventHandlers;
 using Huppy.Services;
@@ -14,6 +14,7 @@ namespace Huppy.Configuration
         private readonly IServiceProvider _serviceProvider;
         private readonly DiscordShardedClient _shardedClient;
         private readonly DiscordEvents _discordEvents;
+        private readonly AppSettings _appSettings;
 
         public DiscordConfigurator(IServiceProvider provider)
         {
@@ -21,6 +22,7 @@ namespace Huppy.Configuration
 
             _shardedClient = _serviceProvider.GetRequiredService<DiscordShardedClient>();
             _discordEvents = _serviceProvider.GetRequiredService<DiscordEvents>();
+            _appSettings = _serviceProvider.GetRequiredService<AppSettings>();
         }
 
         public async Task ConfigureCommandsAsync() =>
@@ -31,8 +33,11 @@ namespace Huppy.Configuration
             // for debug
             _shardedClient.Log += (LogMessage) => { Console.WriteLine(LogMessage.Message); return Task.CompletedTask; };
 
-            await _shardedClient.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("DiscordToken", EnvironmentVariableTarget.User));
+            await _shardedClient.LoginAsync(TokenType.Bot, _appSettings.BotToken);
             await _shardedClient.StartAsync();
+
+            // set basic activity 
+            await _shardedClient.SetGameAsync("Prefix: ^", null, ActivityType.Playing);
         }
 
         public async Task ConfigureClientEventsAsync()
